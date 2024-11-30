@@ -11,7 +11,7 @@ pub extern "C" fn async_rust_fn(
         let callback_wrapper = callback_wrapper.0;
         (callback)(callback_wrapper, val)
     };
-    swift_bridge::async_support::ASYNC_RUNTIME.spawn_task(Box::pin(task));
+    swift_bridge::async_support::spawn_task(Box::pin(task));
 }
 
 async fn async_rust_fn_to_expose() -> i32 {

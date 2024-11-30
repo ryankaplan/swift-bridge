@@ -34,7 +34,7 @@ mod extern_rust_async_function_no_return {
 
                     (callback)(callback_wrapper)
                 };
-                swift_bridge::async_support::ASYNC_RUNTIME.spawn_task(Box::pin(task))
+                swift_bridge::async_support::spawn_task(Box::pin(task))
             }
         })
     }
@@ -122,7 +122,7 @@ mod extern_rust_async_function_u32_arg {
 
                     (callback)(callback_wrapper)
                 };
-                swift_bridge::async_support::ASYNC_RUNTIME.spawn_task(Box::pin(task))
+                swift_bridge::async_support::spawn_task(Box::pin(task))
             }
         })
     }
@@ -210,7 +210,7 @@ mod extern_rust_async_function_returns_u8 {
 
                     (callback)(callback_wrapper, val)
                 };
-                swift_bridge::async_support::ASYNC_RUNTIME.spawn_task(Box::pin(task))
+                swift_bridge::async_support::spawn_task(Box::pin(task))
             }
         })
     }
@@ -298,7 +298,7 @@ mod extern_rust_async_function_returns_string {
 
                     (callback)(callback_wrapper, val)
                 };
-                swift_bridge::async_support::ASYNC_RUNTIME.spawn_task(Box::pin(task))
+                swift_bridge::async_support::spawn_task(Box::pin(task))
             }
         })
     }
@@ -389,7 +389,7 @@ mod extern_rust_async_function_returns_struct {
 
                     (callback)(callback_wrapper, val)
                 };
-                swift_bridge::async_support::ASYNC_RUNTIME.spawn_task(Box::pin(task))
+                swift_bridge::async_support::spawn_task(Box::pin(task))
             }
         })
     }
@@ -478,7 +478,7 @@ mod extern_rust_async_method {
 
                     (callback)(callback_wrapper)
                 };
-                swift_bridge::async_support::ASYNC_RUNTIME.spawn_task(Box::pin(task))
+                swift_bridge::async_support::spawn_task(Box::pin(task))
             }
         })
     }
@@ -587,7 +587,7 @@ mod extern_rust_async_function_returns_result_opaque {
 
                     (callback)(callback_wrapper, val)
                 };
-                swift_bridge::async_support::ASYNC_RUNTIME.spawn_task(Box::pin(task))
+                swift_bridge::async_support::spawn_task(Box::pin(task))
             }
         })
     }
@@ -692,7 +692,7 @@ mod extern_rust_async_function_returns_result_transparent_enum {
 
                     (callback)(callback_wrapper, val)
                 };
-                swift_bridge::async_support::ASYNC_RUNTIME.spawn_task(Box::pin(task))
+                swift_bridge::async_support::spawn_task(Box::pin(task))
             }
         })
     }
@@ -793,7 +793,7 @@ mod extern_rust_async_function_returns_result_opaque_rust_transparent_enum {
 
                     (callback)(callback_wrapper, val)
                 };
-                swift_bridge::async_support::ASYNC_RUNTIME.spawn_task(Box::pin(task))
+                swift_bridge::async_support::spawn_task(Box::pin(task))
             }
         })
     }
@@ -890,7 +890,7 @@ mod extern_rust_async_function_returns_result_null_transparent_enum {
 
                     (callback)(callback_wrapper, val)
                 };
-                swift_bridge::async_support::ASYNC_RUNTIME.spawn_task(Box::pin(task))
+                swift_bridge::async_support::spawn_task(Box::pin(task))
             }
         })
     }
@@ -986,7 +986,7 @@ mod extern_rust_async_function_returns_result_null_opaque {
                     let callback_wrapper = callback_wrapper.0;
                     (callback)(callback_wrapper, val)
                 };
-                swift_bridge::async_support::ASYNC_RUNTIME.spawn_task(Box::pin(task))
+                swift_bridge::async_support::spawn_task(Box::pin(task))
             }
         })
     }

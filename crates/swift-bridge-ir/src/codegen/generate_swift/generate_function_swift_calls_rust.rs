@@ -15,15 +15,13 @@ pub(super) fn gen_func_swift_calls_rust(
     let params = function.to_swift_param_names_and_types(false, types, swift_bridge_path);
     let call_args = function.to_swift_call_args(true, false, types, swift_bridge_path);
     let call_fn = if function.sig.asyncness.is_some() {
-        let maybe_args = if function.sig.inputs.is_empty() {
-            "".to_string()
-        } else {
-            format!(", {}", call_args)
-        };
-
-        format!("{}(wrapperPtr, onComplete{})", fn_name, maybe_args)
+        format!("{}", fn_name)
     } else {
-        format!("{}({})", fn_name, call_args)
+        if function.sig.inputs.is_empty() {
+            format!("{}()", fn_name)
+        } else {
+            format!("{}({})", fn_name, call_args)
+        }
     };
 
     let maybe_type_name_segment = if let Some(ty) = function.associated_type.as_ref() {
@@ -39,6 +37,13 @@ pub(super) fn gen_func_swift_calls_rust(
     } else {
         "".to_string()
     };
+
+    let call_rust = format!(
+        "{prefix}{type_name_segment}${call_fn}",
+        prefix = SWIFT_BRIDGE_PREFIX,
+        type_name_segment = maybe_type_name_segment,
+        call_fn = call_fn
+    );
 
     let maybe_static_class_func = if function.associated_type.is_some()
         && (!function.is_method() && !function.is_swift_initializer)
@@ -88,12 +93,6 @@ pub(super) fn gen_func_swift_calls_rust(
         ""
     };
 
-    let call_rust = format!(
-        "{prefix}{type_name_segment}${call_fn}",
-        prefix = SWIFT_BRIDGE_PREFIX,
-        type_name_segment = maybe_type_name_segment,
-        call_fn = call_fn
-    );
     let mut call_rust = if function.sig.asyncness.is_some() {
         call_rust
     } else if function.is_swift_initializer {
@@ -235,14 +234,7 @@ pub(super) fn gen_func_swift_calls_rust(
         let maybe_on_complete_sig_ret_val = if func_ret_ty.is_null() {
             "".to_string()
         } else {
-            format!(
-                ", rustFnRetVal: {}",
-                func_ret_ty.to_swift_type(
-                    TypePosition::SwiftCallsRustAsyncOnCompleteReturnTy,
-                    types,
-                    swift_bridge_path
-                )
-            )
+            ", rustFnRetVal".to_string()
         };
         let callback_wrapper_ty = format!("CbWrapper{}${}", maybe_type_name_segment, fn_name);
         let (run_wrapper_cb, error, maybe_try, with_checked_continuation_function_name) =
@@ -290,12 +282,7 @@ pub(super) fn gen_func_swift_calls_rust(
         );
 
         let fn_body = format!(
-            r#"func onComplete(cbWrapperPtr: UnsafeMutableRawPointer?{maybe_on_complete_sig_ret_val}) {{
-    let wrapper = Unmanaged<{cb_wrapper_ty}>.fromOpaque(cbWrapperPtr!).takeRetainedValue()
-    {run_wrapper_cb}
-}}
-
-return{maybe_try}await {with_checked_continuation_function_name}({{ (continuation: CheckedContinuation<{rust_fn_ret_ty}, {error}>) in
+            r#"return{maybe_try}await {with_checked_continuation_function_name}({{ (continuation: CheckedContinuation<{rust_fn_ret_ty}, {error}>) in
     let callback = {{ rustFnRetVal in
         continuation.resume(with: rustFnRetVal)
     }}
@@ -303,13 +290,21 @@ return{maybe_try}await {with_checked_continuation_function_name}({{ (continuatio
     let wrapper = {cb_wrapper_ty}(cb: callback)
     let wrapperPtr = Unmanaged.passRetained(wrapper).toOpaque()
 
-    {call_rust}
+    {call_rust}(wrapperPtr, {{ cbWrapperPtr{maybe_on_complete_sig_ret_val} in
+        let wrapper = Unmanaged<{cb_wrapper_ty}>.fromOpaque(cbWrapperPtr!).takeRetainedValue()
+        {run_wrapper_cb}
+    }}{maybe_args})
 }})"#,
             rust_fn_ret_ty = rust_fn_ret_ty,
             error = error,
             maybe_on_complete_sig_ret_val = maybe_on_complete_sig_ret_val,
             cb_wrapper_ty = callback_wrapper_ty,
             call_rust = call_rust,
+            maybe_args = if function.sig.inputs.is_empty() {
+                "".to_string()
+            } else {
+                format!(", {}", call_args)
+            }
         );
 
         let mut fn_body_indented = "".to_string();
@@ -323,7 +318,8 @@ return{maybe_try}await {with_checked_continuation_function_name}({{ (continuatio
         let fn_body_indented = fn_body_indented.trim_end();
 
         format!(
-            r#"{indentation}{maybe_static_class_func}{swift_class_func_name}{maybe_generics}({params}) async{maybe_ret} {{
+            r#"{indentation}@MainActor
+{indentation}{maybe_static_class_func}{swift_class_func_name}{maybe_generics}({params}) async{maybe_ret} {{
 {fn_body_indented}
 {indentation}}}
 {callback_wrapper}"#,

@@ -1218,6 +1218,9 @@ impl BridgedType {
                             "UnsafeMutableRawPointer".to_string()
                         }
                     }
+                    TypePosition::SwiftCallsRustAsyncOnCompleteReturnTy => {
+                        "UnsafeMutableRawPointer?".to_string()
+                    }
                     TypePosition::ThrowingInit(_) => unimplemented!(),
                     _ => {
                         format!(
@@ -1587,7 +1590,12 @@ impl BridgedType {
                 }
                 StdLibType::Str => expression.to_string(),
                 StdLibType::Vec(_ty) => {
-                    format!("RustVec(ptr: {})", expression)
+                        match type_pos {
+                        TypePosition::SwiftCallsRustAsyncOnCompleteReturnTy => {
+                            format!("RustVec(ptr: {}!)", expression)
+                        }
+                        _ => format!("RustVec(ptr: {})", expression),
+                    }
                 }
                 StdLibType::Option(opt) => opt.convert_ffi_expression_to_swift_type(expression),
                 StdLibType::Result(result) => result.convert_ffi_value_to_swift_value(

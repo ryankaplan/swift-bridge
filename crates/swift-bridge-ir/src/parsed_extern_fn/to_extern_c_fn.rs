@@ -104,7 +104,7 @@ impl ParsedExternFn {
 
                                 #call_callback
                             };
-                            swift_bridge::async_support::ASYNC_RUNTIME.spawn_task(Box::pin(task))
+                            swift_bridge::async_support::spawn_task(Box::pin(task))
                         }
                     }
                 }
