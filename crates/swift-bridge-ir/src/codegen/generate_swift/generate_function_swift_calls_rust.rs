@@ -163,43 +163,45 @@ pub(super) fn gen_func_swift_calls_rust(
     } else {
         "return "
     };
+    let wrap_call_rust = |call_rust: String| {
+        let mut wrapped_call = call_rust;
+        for arg in function.func.sig.inputs.iter() {
+            let bridged_arg = BridgedType::new_with_fn_arg(arg, types);
+            if bridged_arg.is_none() {
+                continue;
+            }
+            let bridged_arg = bridged_arg.unwrap();
 
-    for arg in function.func.sig.inputs.iter() {
-        let bridged_arg = BridgedType::new_with_fn_arg(arg, types);
-        if bridged_arg.is_none() {
-            continue;
-        }
-        let bridged_arg = bridged_arg.unwrap();
+            let arg_name = fn_arg_name(arg).unwrap().to_string();
 
-        let arg_name = fn_arg_name(arg).unwrap().to_string();
-
-        // TODO: Refactor to make less duplicative
-        match bridged_arg {
-            BridgedType::StdLib(StdLibType::Str) => {
-                call_rust = format!(
-                    r#"{maybe_return}{arg}.toRustStr({{ {arg}AsRustStr in
+            match bridged_arg {
+                BridgedType::StdLib(StdLibType::Str) => {
+                    wrapped_call = format!(
+                        r#"{maybe_return}{arg}.toRustStr({{ {arg}AsRustStr in
 {indentation}        {call_rust}
 {indentation}    }})"#,
-                    maybe_return = maybe_return,
-                    indentation = indentation,
-                    arg = arg_name,
-                    call_rust = call_rust
-                );
-            }
-            BridgedType::StdLib(StdLibType::Option(briged_opt)) if briged_opt.ty.is_str() => {
-                call_rust = format!(
-                    r#"{maybe_return}optionalRustStrToRustStr({arg}, {{ {arg}AsRustStr in
+                        maybe_return = maybe_return,
+                        indentation = indentation,
+                        arg = arg_name,
+                        call_rust = wrapped_call
+                    );
+                }
+                BridgedType::StdLib(StdLibType::Option(briged_opt)) if briged_opt.ty.is_str() => {
+                    wrapped_call = format!(
+                        r#"{maybe_return}optionalRustStrToRustStr({arg}, {{ {arg}AsRustStr in
 {indentation}        {call_rust}
 {indentation}    }})"#,
-                    maybe_return = maybe_return,
-                    indentation = indentation,
-                    arg = arg_name,
-                    call_rust = call_rust
-                );
+                        maybe_return = maybe_return,
+                        indentation = indentation,
+                        arg = arg_name,
+                        call_rust = wrapped_call
+                    );
+                }
+                _ => {}
             }
-            _ => {}
         }
-    }
+        wrapped_call
+    };
 
     if function.is_swift_initializer {
         if function.is_copy_method_on_opaque_type() {
@@ -281,6 +283,21 @@ pub(super) fn gen_func_swift_calls_rust(
             cb_wrapper_ty = callback_wrapper_ty
         );
 
+        let call_invocation = format!("
+{call_rust}(wrapperPtr, {{ cbWrapperPtr{maybe_on_complete_sig_ret_val} in
+    let wrapper = Unmanaged<{cb_wrapper_ty}>.fromOpaque(cbWrapperPtr!).takeRetainedValue()
+    {run_wrapper_cb}
+}}{maybe_args})", 
+maybe_on_complete_sig_ret_val = maybe_on_complete_sig_ret_val,
+cb_wrapper_ty = callback_wrapper_ty,
+call_rust = call_rust,
+maybe_args = if function.sig.inputs.is_empty() {
+    "".to_string()
+} else {
+    format!(", {}", call_args)
+}
+        );
+
         let fn_body = format!(
             r#"return{maybe_try}await {with_checked_continuation_function_name}({{ (continuation: CheckedContinuation<{rust_fn_ret_ty}, {error}>) in
     let callback = {{ rustFnRetVal in
@@ -290,21 +307,12 @@ pub(super) fn gen_func_swift_calls_rust(
     let wrapper = {cb_wrapper_ty}(cb: callback)
     let wrapperPtr = Unmanaged.passRetained(wrapper).toOpaque()
 
-    {call_rust}(wrapperPtr, {{ cbWrapperPtr{maybe_on_complete_sig_ret_val} in
-        let wrapper = Unmanaged<{cb_wrapper_ty}>.fromOpaque(cbWrapperPtr!).takeRetainedValue()
-        {run_wrapper_cb}
-    }}{maybe_args})
+    {call_invocation}
 }})"#,
             rust_fn_ret_ty = rust_fn_ret_ty,
             error = error,
-            maybe_on_complete_sig_ret_val = maybe_on_complete_sig_ret_val,
             cb_wrapper_ty = callback_wrapper_ty,
-            call_rust = call_rust,
-            maybe_args = if function.sig.inputs.is_empty() {
-                "".to_string()
-            } else {
-                format!(", {}", call_args)
-            }
+            call_invocation = wrap_call_rust(call_invocation),
         );
 
         let mut fn_body_indented = "".to_string();
@@ -343,7 +351,7 @@ pub(super) fn gen_func_swift_calls_rust(
             maybe_generics = maybe_generics,
             params = params,
             maybe_ret = maybe_return,
-            call_rust = call_rust,
+            call_rust = wrap_call_rust(call_rust),
             maybe_throws = maybe_throws,
         )
     };
